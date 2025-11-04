@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Nov  3 18:00:47 2025
+Created on Thu Oct  2 19:41:10 2025
 
 @author: jaydenwang
 """
@@ -46,11 +46,10 @@ reps = 10  # Number of repetitions for averaging and SE
 def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
 
     cov_matrix = np.array([[1, tau], [tau, 1]])
-    
-    # EAD u_i, assumed to be unit
     u = np.ones(N) if u is None else np.asarray(u, dtype=float)   # shape (N,)
 
     results = []
+
 
     def f_cond_scalar(e, z_L):
         e = float(np.clip(e, 1e-12, 1-1e-12))
@@ -87,6 +86,7 @@ def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
                 X = rho_D[:, None]*z_D + np.sqrt(1 - rho_D[:, None]**2)*eta_D
                 D = (X > x_d[:, None]).astype(float)
 
+                # Individual losses Li = u_i * epsilon_i * D_i
                 losses = (u[:, None]) * epsilon_all * D   # (N, N_inner)
 
                 # Portfolio loss and L_{-i}
@@ -128,7 +128,7 @@ def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
                 arg = (x_d - rho_D * z_D) / np.sqrt(1 - rho_D**2)
                 p_cond = 1 - norm.cdf(arg)
 
-                # Boundary terms with EAD
+                # Boundary terms with EAD:
                 boundary = np.zeros(N)
                 prod_all = np.prod(1 - p_cond)
                 for i in range(N):
@@ -138,9 +138,9 @@ def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
                         f_at = f_cond_scalar(ei, z_L)
                         denom = (1 - p_cond[i])
                         prod_i = prod_all / denom if denom > 0 else 0.0
-                        # - u_i * a * f_cond(a/u_i) * prod_{j≠i}(1 - p_j)
-                        boundary[i] = - u[i] * a * f_at * prod_i
-                    # else: boundary[i] stays 0 (includes the typical min(1, a/u_i)=1 case)
+                        # - a * f_cond(a/u_i) * prod_{j≠i}(1 - p_j)
+                        boundary[i] = - a * f_at * prod_i
+                    # Else, boundary[i] stays 0 (includes the typical min(1, a/u_i)=1 case)
 
                 inner_values = np.zeros(N)
 
@@ -151,10 +151,10 @@ def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
                     inner_avg = u[i] * (np.sum(F * g) / N_inner) + boundary[i]
                     inner_values[i] = inner_avg
 
-                # Accumulate A_i = E_Z[ p_i(Z_D) * inner(z) ]
+                # A_i = E_Z[ p_i(Z_D) * inner(z) ]
                 A += (p_cond * inner_values)
 
-            # Outerloop
+            # Outer
             A = A / N_outer
 
             # Denominator via full allocation: f_L(a) = sum_i A_i / a
@@ -176,6 +176,7 @@ def compute_safa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
         })
 
     return results
+
 
 # Run the computation
 safa_results = compute_safa_varc(a_VaR_values, N_outer, N_inner, reps) 

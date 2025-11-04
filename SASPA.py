@@ -342,8 +342,8 @@ def compute_saspa_varc(a_VaR_values, N_outer, N_inner, reps, u=None):
                         f_at = f_cond_scalar(ei, z_L)
                         denom = (1 - p_cond[i])
                         prod_i = (prod_all / denom) if denom > 0 else 0.0
-                        # - u_i * a * f_cond(a/u_i | z_L) * Π_{j≠i} (1 - p_j(Z_D))
-                        boundary[i] = - u[i] * a * f_at * prod_i
+                        # - a * f_cond(a/u_i | z_L) * Π_{j≠i} (1 - p_j(Z_D))
+                        boundary[i] = - a * f_at * prod_i
 
                 # inner averages with thresholds a - u_i * eps_i
                 inner_values = np.zeros(N)
